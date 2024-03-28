@@ -5,6 +5,7 @@
  *     Implement the logic around the BT events
  */
 #include "handler_bt.h"
+#include "handler_common.h"
 static char *PROFILES[] = {
     "A2DP",
     "AVRCP",
@@ -113,11 +114,6 @@ void HandlerBTInit(HandlerContext_t *context)
             context
         );
         EventRegisterCallback(
-            BT_EVENT_LINK_BACK_STATUS,
-            &HandlerBTBM83LinkBackStatus,
-            context
-        );
-        EventRegisterCallback(
             BT_EVENT_DSP_STATUS,
             &HandlerBTBM83DSPStatus,
             context
@@ -158,6 +154,9 @@ void HandlerBTInit(HandlerContext_t *context)
  */
 void HandlerBTCallStatus(void *ctx, uint8_t *data)
 {
+    if (ConfigGetSetting(CONFIG_SETTING_HFP) == CONFIG_SETTING_OFF) {
+        return;
+    }
     HandlerContext_t *context = (HandlerContext_t *) ctx;
     // If we were playing before the call, try to resume playback
     if (context->bt->callStatus == BT_CALL_INACTIVE &&
@@ -174,6 +173,17 @@ void HandlerBTCallStatus(void *ctx, uint8_t *data)
         return;
     }
     LogDebug(LOG_SOURCE_SYSTEM, "Call > TCU");
+    if (context->bt->type == BT_BTM_TYPE_BM83) {
+        uint8_t micGain = ConfigGetSetting(CONFIG_SETTING_MIC_GAIN);
+        while (micGain > 0) {
+            if (context->telStatus == IBUS_TEL_STATUS_ACTIVE_POWER_CALL_HANDSFREE) {
+                BM83CommandMicGainUp(context->bt);
+            } else {
+                BM83CommandMicGainDown(context->bt);
+            }
+            micGain--;
+        }
+    }
     // Handle volume control
     if (HandlerGetTelMode(context) == HANDLER_TEL_MODE_TCU) {
         uint8_t boardVersion = UtilsGetBoardVersion();
@@ -208,7 +218,9 @@ void HandlerBTCallStatus(void *ctx, uint8_t *data)
         if (context->ibus->moduleStatus.MID == 1) {
             sourceSystem = IBUS_DEVICE_MID;
         }
-        if (context->uiMode == CONFIG_UI_CD53) {
+        if (context->uiMode == CONFIG_UI_CD53 ||
+            context->ibus->vehicleType == IBUS_VEHICLE_TYPE_R50
+        ) {
             sourceSystem = IBUS_DEVICE_MFL;
             volStepMax = 0x01;
         }
@@ -440,6 +452,7 @@ void HandlerBTDeviceLinkConnected(void *ctx, uint8_t *data)
             }
         }
         if (linkType == BT_LINK_TYPE_HFP) {
+            HandlerSetIBusTELStatus(context, HANDLER_TEL_STATUS_FORCE);
             if (hfpConfigStatus == CONFIG_SETTING_OFF) {
                 if (context->bt->type == BT_BTM_TYPE_BM83) {
                     BM83CommandDisconnect(context->bt, BM83_CMD_DISCONNECT_PARAM_HF);
@@ -684,36 +697,6 @@ void HandlerBTBM83AVRCPUpdates(void *ctx, uint8_t *data)
 }
 
 /**
- * HandlerBTBM83LinkBackStatus()
- *     Description:
- *         React to Link back Status updates. When the ACL connection
- *         is reported as failed, increment the selected device.
- *     Params:
- *         void *ctx - The context provided at registration
- *         uint8_t *pkt - Any event data
- *     Returns:
- *         void
- */
-void HandlerBTBM83LinkBackStatus(void *ctx, uint8_t *pkt)
-{
-    HandlerContext_t *context = (HandlerContext_t *) ctx;
-    uint8_t linkType = pkt[0];
-    uint8_t linkStatus = pkt[1];
-    if (context->ibus->ignitionStatus != IBUS_IGNITION_OFF) {
-        if (linkType == BM83_DATA_LINK_BACK_HF &&
-            linkStatus == BM83_DATA_LINK_BACK_A2DP_HF_SUCCESS
-        ) {
-            // The mic gain has to be reset every time we reconnect
-            uint8_t micGain = ConfigGetSetting(CONFIG_SETTING_MIC_GAIN);
-            while (micGain > 0) {
-                BM83CommandMicGainUp(context->bt);
-                micGain--;
-            }
-        }
-    }
-}
-
-/**
  * HandlerBTBM83DSPStatus()
  *     Description:
  *         React to DSP status updates. Disable S/PDIF when the sample
@@ -728,13 +711,14 @@ void HandlerBTBM83DSPStatus(void *ctx, uint8_t *pkt)
 {
     HandlerContext_t *context = (HandlerContext_t *) ctx;
     uint8_t sampleRate = pkt[0];
-    if (context->ibus->ignitionStatus != IBUS_IGNITION_OFF) {
-        if (sampleRate != BM83_DATA_DSP_REPORTED_SR_44_1kHz) {
-            LogDebug(LOG_SOURCE_BT, "Disable S/PDIF");
-            SPDIF_RST = 0;
-        } else {
-            SPDIF_RST = 1;
-        }
+    if (context->ibus->ignitionStatus == IBUS_IGNITION_OFF) {
+        return;
+    }
+    if (sampleRate != BM83_DATA_DSP_REPORTED_SR_44_1kHz) {
+        LogDebug(LOG_SOURCE_BT, "Disable S/PDIF");
+        SPDIF_RST = 0;
+    } else {
+        SPDIF_RST = 1;
     }
 }
 
@@ -842,7 +826,7 @@ void HandlerTimerBTVolumeManagement(void *ctx)
         context->bt->activeDevice.a2dpId != 0
     ) {
         uint32_t timeSinceUpdate = now - context->pdcLastStatus;
-        if (context->volumeMode == HANDLER_WAIT_REV_VOL &&
+        if (context->volumeMode == HANDLER_VOLUME_MODE_LOWERED &&
             timeSinceUpdate >= HANDLER_WAIT_REV_VOL
         ) {
             LogWarning(
@@ -978,8 +962,7 @@ void HandlerTimerBTBC127OpenProfileErrors(void *ctx)
 {
     HandlerContext_t *context = (HandlerContext_t *) ctx;
     if (BTHasActiveMacId(context->bt) != 0) {
-        uint8_t idx;
-        for (idx = 0; idx < BC127_PROFILE_COUNT; idx++) {
+        for (uint8_t idx = 0; idx < BC127_PROFILE_COUNT; idx++) {
             if (context->bt->pairingErrors[idx] == 1 && PROFILES[idx] != 0) {
                 LogDebug(LOG_SOURCE_SYSTEM, "Handler: Attempting to resolve pairing error");
                 BC127CommandProfileOpen(
@@ -1089,6 +1072,24 @@ void HandlerTimerBTBM83AVRCPManager(void *ctx)
                 HANDLER_INT_BT_AVRCP_UPDATER
             );
         }
+    }
+}
+
+
+/**
+ * HandlerTimerBTBM83AVRCPPlaybackState()
+ *     Description:
+ *         Request the current playback status and ensure that autplay is run
+ *         correctly
+ *     Params:
+ *         void *ctx - The context provided at registration
+ *     Returns:
+ *         void
+ */
+void HandlerTimerBTBM83AVRCPPlaybackState(void *ctx)
+{
+    HandlerContext_t *context = (HandlerContext_t *) ctx;
+    if (context->bt->activeDevice.avrcpId != 0) {
     }
 }
 

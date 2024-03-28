@@ -27,7 +27,11 @@
 #define MID_BUTTON_DEVICES_L 0x45
 #define MID_BUTTON_DEVICES_R 0x46
 #define MID_BUTTON_PAIR 0x48
+#define MID_BUTTON_BT 0x4A
 #define MID_BUTTON_MODE 0x4B
+
+#define MID_BUTTON_BT_PRESS 0x0A
+#define MID_BUTTON_BT_RELEASE 0x4B
 
 #define MID_BUTTON_MODE_PRESS 0x0B
 #define MID_BUTTON_MODE_RELEASE 0x4B
@@ -107,6 +111,7 @@ void MIDBTDeviceDisconnected(void *, uint8_t *);
 void MIDBTMetadataUpdate(void *, uint8_t *);
 void MIDBTPlaybackStatus(void *, uint8_t *);
 void MIDIBusCDChangerStatus(void *, uint8_t *);
+void MIDIBusIgnitionStatus(void *, uint8_t *);
 void MIDIBusMIDButtonPress(void *, uint8_t *);
 void MIDIIBusRADMIDDisplayUpdate(void *, uint8_t *);
 void MIDIIBusRADMIDMenuUpdate(void *, uint8_t *);

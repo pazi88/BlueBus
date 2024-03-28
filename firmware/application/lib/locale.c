@@ -84,6 +84,88 @@ static char *LOCALE_LANG_ENGLISH[] = {
     "Voice Assistant",
     "Call",
     "Autozoom: %s",
+    "PDC: %s",
+};
+
+static char *LOCALE_LANG_FRENCH[] = {
+    "- Pas de lecture -",
+    "\xC0 propos",
+    "Audio",
+    "Lect. auto: Non",
+    "Lect. auto: Oui",
+    "Retour",
+    "Clignotants: %d",
+    "Bluetooth",
+    "R\xE9vision: %d/%d",
+    "Appel en cours",
+    "Mod\xE8le: E3x/E53",
+    "Mod\xE8le: E46/Z4",
+    "Mod\xE8le: Ind\xE9""fini",
+    "Sup. appairages",
+    "Confort",
+    "Tableau de bord",
+    "Appareils",
+    "DSP: Par d\xE9""faut",
+    "DSP: Analogique",
+    "DSP: Digital",
+    "FW: %s",
+    "Main libre: Non",
+    "Main libre: Oui",
+    "Verr.: 10km/h",
+    "Verr.: 20km/h",
+    "Verr.: Non",
+    "Menu principal",
+    "Menu: TDB",
+    "Menu: Principal",
+    "Donn\xE9""es: Bloc",
+    "Donn\xE9""es: Non",
+    "Donn\xE9""es: D\xE9""fil.",
+    "Micro Bias: Non",
+    "Micro Bias: Oui",
+    "Micro Gain: %idB",
+    "Pas d'appareil",
+    "Appairage: Non",
+    "Appairage: Oui",
+    "S/N: %u",
+    "Param\xE8tres",
+    "Param\xE8tres > \xC0 propos",
+    "Param\xE8tres > Audio",
+    "Param\xE8tres > Appel",
+    "Param\xE8tres > Confort",
+    "Param\xE8tres > Affichage",
+    "Temp.: Eau",
+    "Temp.: Non",
+    "Temp.: Ext",
+    "Temp.: Huile",
+    "Affichage",
+    "Artiste inconnu",
+    "Titre inconnu",
+    "D\xE9verr.: Non",
+    "D\xE9verr.: Pos. 0",
+    "D\xE9verr.: Pos. 1",
+    "Volume: -%ddB",
+    "Volume: +%ddB",
+    "Volume: +24dB",
+    "Volume: 0dB",
+    "Langue: %s",
+    "Feux park.: Oui",
+    "Feux park.: Non",
+    "Gest. vol.: Oui",
+    "Gest. vol.: Non",
+    "Vol. inv.: Oui",
+    "Vol. inv.: Non",
+    "Aff. temp.: Oui",
+    "Aff. temp.: Non",
+    "BMBT Inact.: Non",
+    "BMBT Inact.: Oui",
+    "Comp. vol.: %+d",
+    "Mode: D\xE9""faut",
+    "Mode: TCU",
+    "Mode: s/sourd.",
+    "Assistant vocal",
+    "Appels",
+    "Zoomauto: %s",
+    "PDC: %s",
 };
 
 static char *LOCALE_LANG_ITALIAN[] = {
@@ -164,6 +246,7 @@ static char *LOCALE_LANG_ITALIAN[] = {
     "Voice Assistant",
     "Telefonata",
     "Autozoom: %s",
+    "PDC: %s",
 };
 
 static char *LOCALE_LANG_DUTCH[] = {
@@ -244,6 +327,7 @@ static char *LOCALE_LANG_DUTCH[] = {
     "Voice Assistant",
     "Oproep",
     "Autozoom: %s",
+    "PDC: %s",
 };
 
 static char *LOCALE_LANG_ESTONIAN[] = {
@@ -324,6 +408,7 @@ static char *LOCALE_LANG_ESTONIAN[] = {
     "Voice Assistant",
     "Kõne",
     "Autozoom: %s",
+    "PDC: %s",
 };
 
 static char LOCALE_LANG_RUSSIAN[][24] = {
@@ -404,6 +489,7 @@ static char LOCALE_LANG_RUSSIAN[][24] = {
     "Voice Assistant",
     "Call",
     "Autozoom: %s",
+    "PDC: %s",
 };
 
 static char *LOCALE_LANG_GERMAN[] = {
@@ -484,6 +570,7 @@ static char *LOCALE_LANG_GERMAN[] = {
     "Voice Assistant",
     "Anruf",
     "Autozoom: %s",
+    "PDC: %s",
 };
 
 static char *LOCALE_LANG_SPANISH[] = {
@@ -564,6 +651,88 @@ static char *LOCALE_LANG_SPANISH[] = {
     "Voice Assistant",
     "Llamar",
     "Autozoom: %s",
+    "PDC: %s",
+};
+
+static char *LOCALE_LANG_POLISH[] = {
+    "- Nie odtwarza -",
+    "Informacje",
+    "Dzwiek",
+    "Auto-odtw.: Wyl.",
+    "Auto-odtw.: Wl.",
+    "Powrot",
+    "Kierunkowsk.: %d",
+    "Bluetooth",
+    "Built: %d/%d",
+    "Dzwonienie",
+    "Auto: E3x/E53",
+    "Auto: E46/Z4",
+    "Auto: Nie ustaw.",
+    "Wyczysc liste",
+    "Komfort",
+    "Widok glowny",
+    "Urzadzenia",
+    "DSP: Domyslny",
+    "DSP: Analogowy",
+    "DSP: Cyfrowy",
+    "FW: %s",
+    "Handsfree: Wyl.",
+    "Handsfree: Wl.",
+    "Blok.: 10km/h",
+    "Blok.: 20km/h",
+    "Blok.: Wyl.",
+    "Menu Glowne",
+    "Menu: Widok gl.",
+    "Menu: Glowne",
+    "Metadane: Kawalek",
+    "Metadane: Wyl.",
+    "Metadane: Impreza",
+    "Bal. mikr.: Wyl.",
+    "Bal. mikr.: Wl.",
+    "Wzm. mikr.: %idB",
+    "Brak urzadzenia",
+    "Parowanie: Wyl.",
+    "Parowanie: Wl.",
+    "S/N: %u",
+    "Ustawienia",
+    "Ustawienia > Informacje",
+    "Ustawienia > Dzwiek",
+    "Ustawienia > Dzwonienie",
+    "Ustawienia > Komfort",
+    "Ustawienia > Int. Uzytk.",
+    "Temp.: Plyn Chlod.",
+    "Temp.: Wyl.",
+    "Temp.: Otoczenie",
+    "Temp.: Olej",
+    "Interfejs Uzytk.",
+    "Nieznany Artysta",
+    "Nieznany Tytul",
+    "Odblok.: Wyl.",
+    "Odblok.: Poz. 0",
+    "Odblok.: Poz. 1",
+    "Glosnosc: -%ddB",
+    "Glosnosc: +%ddB",
+    "Glosnosc: +24dB",
+    "Glosnosc: 0dB",
+    "Jezyk: %s",
+    "Swiatla poz: Wl.",
+    "Swiatla poz: Wyl.",
+    "Zarz. Glos.: Wl.",
+    "Zarz. Glos.: Wyl.",
+    "Kor. Dzw.: Wl.",
+    "Kor. Dzw.: Wyl.",
+    "D. Roz. OBC: Wl.",
+    "D. Roz. OBC: Wyl.",
+    "Wyl. BMBT: Wyl.",
+    "Wyl. BMBT: Wl.",
+    "Offset Dzw.: %+d",
+    "Tryb: Domyslny",
+    "Tryb: Modul TCU",
+    "Tryb: Nie wyciszaj",
+    "Asystent glosowy",
+    "Zadzwon",
+    "Autozoom: %s",
+    "PDC: %s",
 };
 
 /**
@@ -578,11 +747,11 @@ static char *LOCALE_LANG_SPANISH[] = {
 char *LocaleGetText(uint16_t stringIndex)
 {
     if (stringIndex>LOCALE_STRING_MAX_INDEX) {
-        return "Err: Missing txt";
+        return "i18n Missing";
     }
 
-    char *text = NULL;
-    unsigned char language = ConfigGetSetting(CONFIG_SETTING_LANGUAGE);
+    char *text = 0;
+    unsigned char language = ConfigGetSetting(CONFIG_SETTING_LANGUAGE) & 0x0F;
 
     switch (language) {
         case CONFIG_SETTING_LANGUAGE_DUTCH:
@@ -603,11 +772,20 @@ char *LocaleGetText(uint16_t stringIndex)
         case CONFIG_SETTING_LANGUAGE_SPANISH:
             text = LOCALE_LANG_SPANISH[stringIndex];
             break;
+        case CONFIG_SETTING_LANGUAGE_POLISH:
+            text = LOCALE_LANG_POLISH[stringIndex];
+            break;
+        case CONFIG_SETTING_LANGUAGE_FRENCH:
+            text = LOCALE_LANG_FRENCH[stringIndex];
+            break;
+        case CONFIG_SETTING_LANGUAGE_ENGLISH:
+        default:
+            text = LOCALE_LANG_ENGLISH[stringIndex];
     }
 
-    if ( text == NULL ) {
+    if (text == 0) {
         text = LOCALE_LANG_ENGLISH[stringIndex];
     }
-    
+
     return text;
 }

@@ -21,13 +21,13 @@
  *         are reset. If data is not removed from the buffer before it hits
  *         capacity, the data will be lost.
  */
-typedef volatile struct CharQueue_t {
+typedef struct CharQueue_t {
     volatile uint16_t readCursor;
     volatile uint16_t writeCursor;
     volatile uint8_t data[CHAR_QUEUE_SIZE];
 } CharQueue_t;
 
-volatile struct CharQueue_t CharQueueInit();
+CharQueue_t CharQueueInit();
 void CharQueueAdd(volatile CharQueue_t *, const uint8_t);
 uint8_t CharQueueGet(volatile CharQueue_t *, uint16_t);
 uint16_t CharQueueGetSize(volatile CharQueue_t *);

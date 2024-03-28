@@ -40,6 +40,11 @@ void MIDInit(BT_t *bt, IBus_t *ibus)
         &Context
     );
     EventRegisterCallback(
+        IBUS_EVENT_IKEIgnitionStatus,
+        &MIDIBusIgnitionStatus,
+        &Context
+    );
+    EventRegisterCallback(
         IBUS_EVENT_MIDButtonPress,
         &MIDIBusMIDButtonPress,
         &Context
@@ -92,6 +97,10 @@ void MIDDestroy()
     EventUnregisterCallback(
         IBUS_EVENT_CDStatusRequest,
         &MIDIBusCDChangerStatus
+    );
+    EventUnregisterCallback(
+        IBUS_EVENT_IKEIgnitionStatus,
+        &MIDIBusIgnitionStatus
     );
     EventUnregisterCallback(
         IBUS_EVENT_MIDButtonPress,
@@ -181,11 +190,12 @@ static void MIDShowNextDevice(MIDContext_t *context, uint8_t direction)
         // if it's the currently selected device
         if (memcmp(dev->macId, context->bt->activeDevice.macId, BT_LEN_MAC_ID) == 0) {
             uint8_t startIdx = strlen(text);
-            if (startIdx > 15) {
-                startIdx = 16;
+            if (startIdx > 13) {
+                startIdx = 13;
             }
             text[startIdx++] = 0x20;
             text[startIdx++] = 0x2A;
+            text[startIdx++] = 0;
         }
         MIDSetMainDisplayText(context, text, 0);
     }
@@ -280,57 +290,59 @@ void MIDBTDeviceDisconnected(void *ctx, unsigned char *tmp)
 void MIDBTMetadataUpdate(void *ctx, unsigned char *tmp)
 {
     MIDContext_t *context = (MIDContext_t *) ctx;
-    if (context->mode == MID_MODE_ACTIVE &&
-        strlen(context->bt->title) > 0 &&
-        ConfigGetSetting(CONFIG_SETTING_METADATA_MODE) != MID_SETTING_METADATA_MODE_OFF
+    if (context->mode != MID_MODE_ACTIVE ||
+        strlen(context->bt->title) == 0 ||
+        ConfigGetSetting(CONFIG_SETTING_METADATA_MODE) == MID_SETTING_METADATA_MODE_OFF
     ) {
-        char text[UTILS_DISPLAY_TEXT_SIZE] = {0};
-        if (strlen(context->bt->artist) > 0 && strlen(context->bt->album) > 0) {
-            snprintf(
-                text,
-                UTILS_DISPLAY_TEXT_SIZE,
-                "%s - %s on %s",
-                context->bt->title,
-                context->bt->artist,
-                context->bt->album
-            );
-        } else if (strlen(context->bt->artist) > 0) {
-            snprintf(
-                text,
-                UTILS_DISPLAY_TEXT_SIZE,
-                "%s - %s",
-                context->bt->title,
-                context->bt->artist
-            );
-        } else if (strlen(context->bt->album) > 0) {
-            snprintf(
-                text,
-                UTILS_DISPLAY_TEXT_SIZE ,
-                "%s on %s",
-                context->bt->title,
-                context->bt->album
-            );
-        } else {
-            snprintf(text, UTILS_DISPLAY_TEXT_SIZE, "%s", context->bt->title);
-        }
-        MIDSetMainDisplayText(context, text, 3000 / MID_DISPLAY_SCROLL_SPEED);
-        TimerTriggerScheduledTask(context->displayUpdateTaskId);
+        return;
     }
+    char text[UTILS_DISPLAY_TEXT_SIZE] = {0};
+    if (strlen(context->bt->artist) > 0 && strlen(context->bt->album) > 0) {
+        snprintf(
+            text,
+            UTILS_DISPLAY_TEXT_SIZE,
+            "%s - %s on %s",
+            context->bt->title,
+            context->bt->artist,
+            context->bt->album
+        );
+    } else if (strlen(context->bt->artist) > 0) {
+        snprintf(
+            text,
+            UTILS_DISPLAY_TEXT_SIZE,
+            "%s - %s",
+            context->bt->title,
+            context->bt->artist
+        );
+    } else if (strlen(context->bt->album) > 0) {
+        snprintf(
+            text,
+            UTILS_DISPLAY_TEXT_SIZE ,
+            "%s on %s",
+            context->bt->title,
+            context->bt->album
+        );
+    } else {
+        snprintf(text, UTILS_DISPLAY_TEXT_SIZE, "%s", context->bt->title);
+    }
+    MIDSetMainDisplayText(context, text, 3000 / MID_DISPLAY_SCROLL_SPEED);
+    TimerTriggerScheduledTask(context->displayUpdateTaskId);
 }
 
 void MIDBTPlaybackStatus(void *ctx, unsigned char *tmp)
 {
     MIDContext_t *context = (MIDContext_t *) ctx;
-    if (context->mode == MID_MODE_ACTIVE) {
-        if (context->bt->playbackStatus == BT_AVRCP_STATUS_PLAYING) {
-            IBusCommandMIDMenuWriteSingle(context->ibus, 0, " >");
-            BTCommandGetMetadata(context->bt);
-        } else {
-            if (ConfigGetSetting(CONFIG_SETTING_METADATA_MODE) != MID_SETTING_METADATA_MODE_OFF) {
-                MIDSetMainDisplayText(context, "Paused", 0);
-            }
-            IBusCommandMIDMenuWriteSingle(context->ibus, 0, "|| ");
+    if (context->mode != MID_MODE_ACTIVE) {
+        return;
+    }
+    if (context->bt->playbackStatus == BT_AVRCP_STATUS_PLAYING) {
+        IBusCommandMIDMenuWriteSingle(context->ibus, 0, " >");
+        BTCommandGetMetadata(context->bt);
+    } else {
+        if (ConfigGetSetting(CONFIG_SETTING_METADATA_MODE) != MID_SETTING_METADATA_MODE_OFF) {
+            MIDSetMainDisplayText(context, "Paused", 0);
         }
+        IBusCommandMIDMenuWriteSingle(context->ibus, 0, "|| ");
     }
 }
 
@@ -366,6 +378,30 @@ void MIDIBusCDChangerStatus(void *ctx, unsigned char *pkt)
             context->modeChangeStatus = MID_MODE_CHANGE_OFF;
             IBusCommandMIDSetMode(context->ibus, IBUS_DEVICE_TEL, 0x02);
         }
+    }
+}
+
+/**
+ * MIDIBusIgnitionStatus()
+ *     Description:
+ *         Ensure we drop the TEL UI when the igintion is turned off
+ *         if the display is still active
+ *     Params:
+ *         void *ctx - A void pointer to the MIDContext_t struct
+ *         uint8_t *pkt - A pointer to the ignition status
+ *     Returns:
+ *         void
+ */
+void MIDIBusIgnitionStatus(void *ctx, uint8_t *pkt)
+{
+    MIDContext_t *context = (MIDContext_t *) ctx;
+    if (pkt[0] == IBUS_IGNITION_OFF &&
+        context->mode != MID_MODE_DISPLAY_OFF &&
+        context->mode != MID_MODE_OFF
+    ) {
+        IBusCommandMIDSetMode(context->ibus, IBUS_DEVICE_TEL, 0x00);
+        context->mode = MID_MODE_OFF;
+        context->modeChangeStatus = MID_MODE_CHANGE_OFF;
     }
 }
 
@@ -446,7 +482,7 @@ void MIDIBusMIDButtonPress(void *ctx, unsigned char *pkt)
                     // Trigger device selection event
                     EventTriggerCallback(
                         UIEvent_InitiateConnection,
-                        (unsigned char *)&context->btDeviceIndex
+                        (uint8_t *)&context->btDeviceIndex
                     );
                 }
             }
@@ -478,7 +514,7 @@ void MIDIBusMIDButtonPress(void *ctx, unsigned char *pkt)
     }
     // Hijack the "TAPE/CD/MD" button
     if (ConfigGetSetting(CONFIG_SETTING_SELF_PLAY) == CONFIG_SETTING_ON) {
-        if (btnPressed == MID_BUTTON_MODE) {
+        if (btnPressed == MID_BUTTON_BT || btnPressed == MID_BUTTON_MODE) {
             IBusCommandRADCDCRequest(context->ibus, IBUS_CDC_CMD_START_PLAYING);
         }
     }
@@ -521,7 +557,7 @@ void MIDIIBusRADMIDDisplayUpdate(void *ctx, unsigned char *pkt)
 void MIDIBusMIDModeChange(void *ctx, unsigned char *pkt)
 {
     MIDContext_t *context = (MIDContext_t *) ctx;
-    if (pkt[IBUS_PKT_DB2] == 0x8E) {
+    if (pkt[IBUS_PKT_DB2] == IBUS_MID_UI_TEL_OPEN) {
         if (pkt[IBUS_PKT_DB1] == IBUS_MID_MODE_REQUEST_TYPE_PHYSICAL) {
             if (ConfigGetSetting(CONFIG_SETTING_SELF_PLAY) == CONFIG_SETTING_ON) {
                 IBusCommandRADCDCRequest(context->ibus, IBUS_CDC_CMD_START_PLAYING);
@@ -529,7 +565,7 @@ void MIDIBusMIDModeChange(void *ctx, unsigned char *pkt)
         } else {
             context->mode = MID_MODE_ACTIVE_NEW;
         }
-    } else if (pkt[IBUS_PKT_DB2] != 0x8F) {
+    } else if (pkt[IBUS_PKT_DB2] != IBUS_MID_UI_TEL_CLOSE) {
         if (pkt[IBUS_PKT_DB2] == 0x00) {
             if (context->mode != MID_MODE_DISPLAY_OFF &&
                 context->mode != MID_MODE_OFF
@@ -539,11 +575,17 @@ void MIDIBusMIDModeChange(void *ctx, unsigned char *pkt)
         } else if (context->mode != MID_MODE_OFF) {
             context->mode = MID_MODE_DISPLAY_OFF;
         }
-        if (pkt[IBUS_PKT_DB2] == 0xB0 &&
+        if (pkt[IBUS_PKT_DB2] == IBUS_MID_UI_RADIO_OPEN &&
             context->modeChangeStatus == MID_MODE_CHANGE_PRESS
         ) {
             IBusCommandMIDButtonPress(context->ibus, IBUS_DEVICE_RAD, MID_BUTTON_MODE_PRESS);
             context->modeChangeStatus = MID_MODE_CHANGE_RELEASE;
+        }
+        if (pkt[IBUS_PKT_DB2] == IBUS_MID_UI_RADIO_OPEN &&
+            context->ibus->cdChangerFunction == IBUS_CDC_FUNC_NOT_PLAYING &&
+            ConfigGetSetting(CONFIG_SETTING_SELF_PLAY) == CONFIG_SETTING_ON
+        ) {
+            IBusCommandMIDMenuWriteSingle(context->ibus, MID_BUTTON_BT, "BT");
         }
     } else {
         // This should be 0x8F, which is "close TEL UI"
@@ -572,80 +614,84 @@ void MIDTimerMenuWrite(void *ctx)
 void MIDTimerDisplay(void *ctx)
 {
     MIDContext_t *context = (MIDContext_t *) ctx;
-    if (context->mode != MID_MODE_OFF && context->mode != MID_MODE_DISPLAY_OFF) {
-        // Display the temp text, if there is any
-        if (context->tempDisplay.status > MID_DISPLAY_STATUS_OFF) {
-            if (context->tempDisplay.timeout == 0) {
-                context->tempDisplay.status = MID_DISPLAY_STATUS_OFF;
-            } else if (context->tempDisplay.timeout > 0) {
-                context->tempDisplay.timeout--;
-            } else if (context->tempDisplay.timeout < -1) {
-                context->tempDisplay.status = MID_DISPLAY_STATUS_OFF;
-            }
-            if (context->tempDisplay.status == MID_DISPLAY_STATUS_NEW) {
-                IBusCommandMIDDisplayText(
-                    context->ibus,
-                    context->tempDisplay.text
-                );
-                context->tempDisplay.status = MID_DISPLAY_STATUS_ON;
-            }
-            if (context->mainDisplay.length <= IBus_MID_MAX_CHARS) {
-                context->mainDisplay.index = 0;
-            }
+    if (context->mode == MID_MODE_OFF ||
+        context->mode == MID_MODE_DISPLAY_OFF ||
+        context->ibus->ignitionStatus == IBUS_IGNITION_OFF
+    ) {
+        return;
+    }
+    // Display the temp text, if there is any
+    if (context->tempDisplay.status > MID_DISPLAY_STATUS_OFF) {
+        if (context->tempDisplay.timeout == 0) {
+            context->tempDisplay.status = MID_DISPLAY_STATUS_OFF;
+        } else if (context->tempDisplay.timeout > 0) {
+            context->tempDisplay.timeout--;
+        } else if (context->tempDisplay.timeout < -1) {
+            context->tempDisplay.status = MID_DISPLAY_STATUS_OFF;
+        }
+        if (context->tempDisplay.status == MID_DISPLAY_STATUS_NEW) {
+            IBusCommandMIDDisplayText(
+                context->ibus,
+                context->tempDisplay.text
+            );
+            context->tempDisplay.status = MID_DISPLAY_STATUS_ON;
+        }
+        if (context->mainDisplay.length <= IBus_MID_MAX_CHARS) {
+            context->mainDisplay.index = 0;
+        }
+    } else {
+        // Display the main text if there isn't a timeout set
+        if (context->mainDisplay.timeout > 0) {
+            context->mainDisplay.timeout--;
         } else {
-            // Display the main text if there isn't a timeout set
-            if (context->mainDisplay.timeout > 0) {
-                context->mainDisplay.timeout--;
-            } else {
-                if (context->mainDisplay.length > IBus_MID_MAX_CHARS) {
-                    char text[IBus_MID_MAX_CHARS + 1] = {0};
-                    uint8_t textLength = IBus_MID_MAX_CHARS;
-                    // If we start with a space, it will be ignored by the display
-                    // Skipping the space allows us to have "smooth" scrolling
-                    if (context->mainDisplay.text[context->mainDisplay.index] == 0x20 &&
-                        context->mainDisplay.index < context->mainDisplay.length
+            if (context->mainDisplay.length > IBus_MID_MAX_CHARS) {
+                char text[IBus_MID_MAX_CHARS + 1] = {0};
+                uint8_t textLength = IBus_MID_MAX_CHARS;
+                // If we start with a space, it will be ignored by the display
+                // Skipping the space allows us to have "smooth" scrolling
+                if (context->mainDisplay.text[context->mainDisplay.index] == 0x20 &&
+                    context->mainDisplay.index < context->mainDisplay.length
+                ) {
+                    context->mainDisplay.index++;
+                }
+                uint8_t idxEnd = context->mainDisplay.index + textLength;
+                // Prevent strncpy() from going out of bounds
+                if (idxEnd >= context->mainDisplay.length) {
+                    textLength = context->mainDisplay.length - context->mainDisplay.index;
+                    idxEnd = context->mainDisplay.index + textLength;
+                }
+                UtilsStrncpy(
+                    text,
+                    &context->mainDisplay.text[context->mainDisplay.index],
+                    textLength + 1
+                );
+                IBusCommandMIDDisplayText(context->ibus, text);
+                // Pause at the beginning of the text
+                if (context->mainDisplay.index == 0) {
+                    context->mainDisplay.timeout = 5;
+                }
+                if (idxEnd >= context->mainDisplay.length) {
+                    // Pause at the end of the text
+                    context->mainDisplay.timeout = 2;
+                    context->mainDisplay.index = 0;
+                } else {
+                    if (ConfigGetSetting(CONFIG_SETTING_METADATA_MODE) ==
+                        MID_SETTING_METADATA_MODE_CHUNK
                     ) {
+                        context->mainDisplay.timeout = 2;
+                        context->mainDisplay.index += IBus_MID_MAX_CHARS;
+                    } else {
                         context->mainDisplay.index++;
                     }
-                    uint8_t idxEnd = context->mainDisplay.index + textLength;
-                    // Prevent strncpy() from going out of bounds
-                    if (idxEnd >= context->mainDisplay.length) {
-                        textLength = context->mainDisplay.length - context->mainDisplay.index;
-                        idxEnd = context->mainDisplay.index + textLength;
-                    }
-                    UtilsStrncpy(
-                        text,
-                        &context->mainDisplay.text[context->mainDisplay.index],
-                        textLength + 1
-                    );
-                    IBusCommandMIDDisplayText(context->ibus, text);
-                    // Pause at the beginning of the text
-                    if (context->mainDisplay.index == 0) {
-                        context->mainDisplay.timeout = 5;
-                    }
-                    if (idxEnd >= context->mainDisplay.length) {
-                        // Pause at the end of the text
-                        context->mainDisplay.timeout = 2;
-                        context->mainDisplay.index = 0;
-                    } else {
-                        if (ConfigGetSetting(CONFIG_SETTING_METADATA_MODE) ==
-                            MID_SETTING_METADATA_MODE_CHUNK
-                        ) {
-                            context->mainDisplay.timeout = 2;
-                            context->mainDisplay.index += IBus_MID_MAX_CHARS;
-                        } else {
-                            context->mainDisplay.index++;
-                        }
-                    }
-                } else {
-                    if (context->mainDisplay.index == 0) {
-                        IBusCommandMIDDisplayText(
-                            context->ibus,
-                            context->mainDisplay.text
-                        );
-                    }
-                    context->mainDisplay.index = 1;
                 }
+            } else {
+                if (context->mainDisplay.index == 0) {
+                    IBusCommandMIDDisplayText(
+                        context->ibus,
+                        context->mainDisplay.text
+                    );
+                }
+                context->mainDisplay.index = 1;
             }
         }
     }
